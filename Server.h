@@ -3,73 +3,103 @@
  */
 #ifndef SERVER_H_
 #define SERVER_H_
+#include <iostream>
+#include <fstream>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <thread>
+#include <netdb.h>
 #include <pthread.h>
+#include <thread>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
+#include <time.h>
+#include <thread>
 #include <cstring>
 #include "commands.h"
 #include "CLI.h"
 using namespace std;
 // edit your ClientHandler interface here:
-class ClientHandler {
+class ClientHandler
+{
 public:
     virtual void handle(int clientID) = 0;
 };
 
 //class socket IO (I-input, O-output) is for read from socket and write into socket.
-class socketIO : public DefaultIO {
-    int socketFD;
+class socketIO : public DefaultIO
+{
+    int socketFileDescriptor;
 public:
     //constructor
-    explicit socketIO(int ID) {
-        this->socketFD = ID;
+    explicit socketIO(int ID)
+    {
+        this->socketFileDescriptor = ID;
     }
-    string read() override {
-        string serverInput;
-        return getServerInput(serverInput);
+    string read() override
+    {
+        string inputFromServer;
+        return getServerInput(inputFromServer);
     }
-    void read(float *f) override {
+    void read(float *file) override
+    {
+        int sizeFile = sizeof(*file);
+        int localFD = socketFileDescriptor;
         //read N bytes into BUF from socket FD. Returns the number read or -1 for errors.
-        recv(socketFD, f, sizeof(*f), 0);
+        recv(localFD, file, sizeFile, 0);
     }
-    void write(string s) override {
-        //cStr = char pointer
-        const char *cStr = s.c_str();
+    void write(string string1) override
+    {
+        int sizeString1 = string1.size();
+        //cStr is char pointer
+        const char *cStr = string1.c_str();
+        int localFD = socketFileDescriptor;
         //send N bytes of BUF to socket FD.  Returns the number sent or -1.
-        send(socketFD, cStr, s.size(), 0);
+        send(localFD, cStr, sizeString1, 0);
     }
-    void write(float f) override {
-        char buf[sizeof(f) + 1];
-        //Write formatted output to socket
-        sprintf(buf, "%f", f);
+    void write(float file) override
+    {
+        int sizeFile = sizeof(file);
+        char buf[sizeFile + 1];
+        int sizeBuf = sizeof(buf);
+        int localFD = socketFileDescriptor;
+        //write formatted output to buf
+        sprintf(buf, "%f", file);
         //send N bytes of BUF to socket FD.  Returns the number sent or -1.
-        send(socketFD, buf, sizeof(buf), 0);
+        send(localFD, buf, sizeBuf, 0);
     }
-    string &getServerInput(string &serverInput) const {
+    string &getServerInput(string &inputFromServer) const
+    {
         char buf = 0;
+        int size = sizeof(char);
+        int localFD = socketFileDescriptor;
         //read N bytes into BUF from socket FD. Returns the number read or -1 for errors.
-        recv(socketFD, &buf, sizeof(char), 0);
-        while (buf != '\n') {
-            serverInput += buf;
-            recv(socketFD, &buf, sizeof(char), 0);
+        recv(localFD, &buf, size, 0);
+        while (buf != '\n')
+        {
+            inputFromServer = inputFromServer + buf;
+            recv(localFD, &buf, size, 0);
         }
-        return serverInput;
+        return inputFromServer;
     }
 };
 
 // AnomalyDetectionHandler class - handle Client
-class AnomalyDetectionHandler : public ClientHandler {
+class AnomalyDetectionHandler : public ClientHandler
+{
 public:
-    virtual void handle(int clientID) {
+    virtual void handle(int clientID)
+    {
         socketIO IO(clientID);
         CLI cli(&IO);
         cli.start();
     }
 };
 // implement on Server.cpp
-class Server {
+class Server
+{
     thread *t{}; // the thread to run the start() method in
 public:
     //isConnect = bool for know if their connection between client and server
